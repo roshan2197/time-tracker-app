@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Time Tracker</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #1f2937, #111827); /* Dark gradient background */
+            -webkit-user-select: none; /* Prevent text selection on iOS */
+            user-select: none;
+            touch-action: manipulation; /* Improves touch responsiveness */
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 1rem;
+            color: #e2e8f0; /* Light text for dark background */
+        }
+        
+        /* Main container now aligned to the top */
+        .app-container {
+            align-self: flex-start;
+            max-width: 420px;
+        }
+
+        /* Keyframe animations for a polished feel */
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: translateY(10px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes slideInUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .fade-in-scale { animation: fadeInScale 0.5s ease-out forwards; }
+        .pulse-animation { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        .slide-in-up { animation: slideInUp 0.3s ease-out forwards; }
+
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #2d3748;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4a5568;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #718096;
+        }
+        
+        .nav-btn.active {
+            background-color: #3b82f6 !important; /* Tailwind blue-500 */
+            color: white !important;
+            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.1), 0 2px 4px -2px rgba(59, 130, 246, 0.1);
+        }
+        
+        .timer-btn {
+            background: linear-gradient(45deg, #22c55e, #16a34a); /* Green gradient */
+            box-shadow: 0 10px 15px -3px rgba(34, 197, 94, 0.3), 0 4px 6px -2px rgba(34, 197, 94, 0.2);
+        }
+        .timer-btn.active {
+            background: linear-gradient(45deg, #ef4444, #dc2626); /* Red gradient */
+            box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.3), 0 4px 6px -2px rgba(239, 68, 68, 0.2);
+        }
+
+        /* Hide specific elements for mobile view initially */
+        @media (max-width: 640px) {
+            .mobile-hide {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Main application container, now full-screen and borderless -->
+    <div class="w-full p-0 space-y-8 app-container">
+
+        <!-- Header and Navigation -->
+        <header class="text-center space-y-3">
+            <!-- Navigation Tabs -->
+            <nav class="flex justify-center space-x-2 sm:space-x-4 pt-2">
+                <button id="timerNavBtn" class="nav-btn px-4 py-2 rounded-full font-semibold text-gray-300 bg-gray-700 hover:bg-gray-600 transition-colors duration-200 text-sm active">
+                    Timer
+                </button>
+                <button id="statsNavBtn" class="nav-btn px-4 py-2 rounded-full font-semibold text-gray-300 bg-gray-700 hover:bg-gray-600 transition-colors duration-200 text-sm">
+                    Stats
+                </button>
+            </nav>
+        </header>
+        
+        <!-- Progress Bar -->
+        <div class="w-full h-2 rounded-full bg-gray-700 overflow-hidden mt-4">
+            <div id="progressBar" class="h-full rounded-full transition-all duration-500 ease-in-out"></div>
+        </div>
+
+        <!-- Timer View Section -->
+        <div id="timerView" class="fade-in-scale">
+            <div class="flex flex-col items-center justify-center p-4 sm:p-6 rounded-2xl border-gray-700 space-y-4 sm:space-y-6 text-center">
+                
+                <!-- Daily remaining time display -->
+                <div class="flex flex-col items-center">
+                    <p class="text-xs sm:text-sm font-semibold text-gray-400">Time Remaining</p>
+                    <p id="dailyRemaining" class="text-xl sm:text-2xl font-bold text-green-400"></p>
+                </div>
+
+                <!-- Start/End Button -->
+                <button id="timerBtn" class="w-36 h-36 sm:w-48 sm:h-48 rounded-full text-white font-bold text-2xl sm:text-3xl shadow-lg transition-all duration-300 transform hover:scale-105 active:scale-95 timer-btn">
+                    START
+                </button>
+
+                <!-- Current Time Display -->
+                <p id="currentTime" class="text-gray-500 text-xs sm:text-sm mt-2"></p>
+
+                <!-- Manual Entry Button -->
+                <button id="manualEntryBtn" class="mt-4 text-xs sm:text-sm text-blue-400 hover:text-blue-200 transition-colors duration-200 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Manual Entry
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats View Section -->
+        <div id="statsView" class="hidden fade-in-scale space-y-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Daily Entries List -->
+                <div>
+                    <h2 class="text-lg sm:text-2xl font-semibold text-gray-300 mb-4">Daily Entries</h2>
+                    <div class="bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-inner border border-gray-700 max-h-[40vh] overflow-y-auto">
+                        <table class="min-w-full divide-y divide-gray-700">
+                            <thead class="sticky top-0 bg-gray-800 z-10">
+                                <tr>
+                                    <th scope="col" class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                    <th scope="col" class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Out</th>
+                                    <th scope="col" class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">In</th>
+                                    <th scope="col" class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dur</th>
+                                    <th scope="col" class="px-2 py-1 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="entriesBody" class="bg-gray-800 divide-y divide-gray-700">
+                                <!-- Entries will be rendered here by JS -->
+                            </tbody>
+                        </table>
+                        <p id="noEntriesMessage" class="text-center text-gray-600 mt-8 hidden text-sm">No entries yet. Add one to get started!</p>
+                    </div>
+                </div>
+    
+                <!-- Daily Totals Section -->
+                <div>
+                    <h2 class="text-lg sm:text-2xl font-semibold text-gray-300 mb-4">Daily Totals</h2>
+                    <div class="bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-inner border border-gray-700 max-h-[40vh] overflow-y-auto">
+                        <div id="totalsContainer" class="divide-y divide-gray-700">
+                            <!-- Daily totals will be rendered here by JS -->
+                        </div>
+                        <p id="noTotalsMessage" class="text-center text-gray-600 mt-8 hidden text-sm">No daily totals to show.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Reset Button -->
+            <div class="text-center mt-6 sm:mt-8">
+                <button id="resetAllBtn" class="px-6 sm:px-8 py-2.5 sm:py-3 bg-red-500 text-white font-semibold rounded-xl shadow-lg hover:bg-red-600 transition-colors duration-200 transform hover:scale-105 active:scale-95 text-sm sm:text-base">
+                    Reset All Data
+                </button>
+            </div>
+        </div>
+
+        <!-- Manual Entry Modal -->
+        <div id="manualEntryModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4">
+            <div class="bg-gray-800 rounded-2xl shadow-2xl p-6 w-full max-w-md space-y-4 slide-in-up">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-semibold text-white">Manual Time Entry</h3>
+                    <button id="closeModalBtn" class="text-gray-400 hover:text-gray-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="space-y-4">
+                    <div class="flex flex-col">
+                        <label for="manualDate" class="text-sm font-medium text-gray-400 mb-1">Date</label>
+                        <input type="date" id="manualDate" class="w-full px-4 py-2 rounded-xl bg-gray-700 text-white border border-gray-600 focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="flex flex-col">
+                            <label for="manualOutTime" class="text-sm font-medium text-gray-400 mb-1">Out Time</label>
+                            <input type="time" id="manualOutTime" class="w-full px-4 py-2 rounded-xl bg-gray-700 text-white border border-gray-600 focus:ring-2 focus:ring-blue-500" required>
+                        </div>
+                        <div class="flex flex-col">
+                            <label for="manualInTime" class="text-sm font-medium text-gray-400 mb-1">In Time</label>
+                            <input type="time" id="manualInTime" class="w-full px-4 py-2 rounded-xl bg-gray-700 text-white border border-gray-600 focus:ring-2 focus:ring-blue-500" required>
+                        </div>
+                    </div>
+                </div>
+                <button id="submitManualEntryBtn" class="w-full px-6 py-2.5 bg-blue-500 text-white font-semibold rounded-xl shadow-lg hover:bg-blue-600 transition-colors duration-200">
+                    Add Entry
+                </button>
+            </div>
+        </div>
+        
+        <!-- Edit Entry Modal -->
+        <div id="editEntryModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4">
+            <div class="bg-gray-800 rounded-2xl shadow-2xl p-6 w-full max-w-md space-y-4 slide-in-up">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-semibold text-white">Edit Time Entry</h3>
+                    <button id="closeEditModalBtn" class="text-gray-400 hover:text-gray-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="space-y-4">
+                    <div class="flex flex-col">
+                        <label for="editDate" class="text-sm font-medium text-gray-400 mb-1">Date</label>
+                        <input type="date" id="editDate" class="w-full px-4 py-2 rounded-xl bg-gray-700 text-white border border-gray-600 focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="flex flex-col">
+                            <label for="editOutTime" class="text-sm font-medium text-gray-400 mb-1">Out Time</label>
+                            <input type="time" id="editOutTime" class="w-full px-4 py-2 rounded-xl bg-gray-700 text-white border border-gray-600 focus:ring-2 focus:ring-blue-500" required>
+                        </div>
+                        <div class="flex flex-col">
+                            <label for="editInTime" class="text-sm font-medium text-gray-400 mb-1">In Time</label>
+                            <input type="time" id="editInTime" class="w-full px-4 py-2 rounded-xl bg-gray-700 text-white border border-gray-600 focus:ring-2 focus:ring-blue-500" required>
+                        </div>
+                    </div>
+                </div>
+                <button id="submitEditEntryBtn" class="w-full px-6 py-2.5 bg-blue-500 text-white font-semibold rounded-xl shadow-lg hover:bg-blue-600 transition-colors duration-200">
+                    Update Entry
+                </button>
+                <input type="hidden" id="editEntryId">
+            </div>
+        </div>
+
+        <!-- Custom Confirmation/Alert Modal -->
+        <div id="confirmationModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4">
+            <div class="bg-gray-800 rounded-2xl shadow-2xl p-6 w-full max-w-sm space-y-4 text-center slide-in-up">
+                <p id="modalMessage" class="text-white font-semibold text-lg"></p>
+                <div id="modalButtons" class="flex justify-center space-x-4">
+                    <button id="modalConfirmBtn" class="px-4 py-2 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600">Confirm</button>
+                    <button id="modalCancelBtn" class="px-4 py-2 bg-gray-600 text-white rounded-lg font-semibold hover:bg-gray-700">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Message Box for user feedback -->
+        <div id="messageBox" class="fixed bottom-4 left-1/2 -translate-x-1/2 hidden bg-yellow-900 border-l-4 border-yellow-500 text-yellow-300 p-4 rounded-lg shadow-lg transition-all duration-300 ease-in-out w-11/12 max-w-sm" role="alert">
+            <p id="messageText" class="font-medium text-sm"></p>
+        </div>
+    </div>
+
+    <!-- JavaScript for app logic -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Elements ---
+            const timerNavBtn = document.getElementById('timerNavBtn');
+            const statsNavBtn = document.getElementById('statsNavBtn');
+            const timerView = document.getElementById('timerView');
+            const statsView = document.getElementById('statsView');
+            const timerBtn = document.getElementById('timerBtn');
+            const currentTimeDisplay = document.getElementById('currentTime');
+            const dailyRemainingDisplay = document.getElementById('dailyRemaining');
+            const entriesBody = document.getElementById('entriesBody');
+            const totalsContainer = document.getElementById('totalsContainer');
+            const resetAllBtn = document.getElementById('resetAllBtn');
+            const manualEntryBtn = document.getElementById('manualEntryBtn');
+            const manualEntryModal = document.getElementById('manualEntryModal');
+            const closeModalBtn = document.getElementById('closeModalBtn');
+            const manualDateInput = document.getElementById('manualDate');
+            const manualOutTimeInput = document.getElementById('manualOutTime');
+            const manualInTimeInput = document.getElementById('manualInTime');
+            const submitManualEntryBtn = document.getElementById('submitManualEntryBtn');
+            const messageBox = document.getElementById('messageBox');
+            const messageText = document.getElementById('messageText');
+            const noEntriesMessage = document.getElementById('noEntriesMessage');
+            const noTotalsMessage = document.getElementById('noTotalsMessage');
+            const progressBar = document.getElementById('progressBar');
+            
+            // Edit modal elements
+            const editEntryModal = document.getElementById('editEntryModal');
+            const closeEditModalBtn = document.getElementById('closeEditModalBtn');
+            const editDateInput = document.getElementById('editDate');
+            const editOutTimeInput = document.getElementById('editOutTime');
+            const editInTimeInput = document.getElementById('editInTime');
+            const submitEditEntryBtn = document.getElementById('submitEditEntryBtn');
+            const editEntryIdInput = document.getElementById('editEntryId');
+
+            // Custom modal elements
+            const confirmationModal = document.getElementById('confirmationModal');
+            const modalMessage = document.getElementById('modalMessage');
+            const modalConfirmBtn = document.getElementById('modalConfirmBtn');
+            const modalCancelBtn = document.getElementById('modalCancelBtn');
+
+            // --- Constants and State Variables ---
+            const DAILY_LIMIT_MINUTES = 60; // 1 hour daily limit
+            let isOut = false;
+            let clockOutTime = null;
+            let timerInterval = null;
+            let resolveModalPromise = null;
+
+            // --- Utility Functions ---
+            
+            /**
+             * Prompts the user with a custom confirmation modal.
+             * @param {string} message - The message to display.
+             * @param {boolean} isConfirm - If true, shows a "Confirm" and "Cancel" button. If false, shows only "OK".
+             * @returns {Promise<boolean>} Resolves with true for Confirm, false for Cancel.
+             */
+            const showModal = (message, isConfirm = false) => {
+                return new Promise(resolve => {
+                    modalMessage.textContent = message;
+                    confirmationModal.classList.remove('hidden');
+                    modalConfirmBtn.classList.remove('hidden');
+                    
+                    if (isConfirm) {
+                        modalCancelBtn.classList.remove('hidden');
+                        modalConfirmBtn.textContent = 'Confirm';
+                    } else {
+                        modalCancelBtn.classList.add('hidden');
+                        modalConfirmBtn.textContent = 'OK';
+                    }
+                    
+                    // Store the resolve function to be called by button handlers
+                    resolveModalPromise = resolve;
+                });
+            };
+
+            // Event listeners for the custom modal buttons
+            modalConfirmBtn.addEventListener('click', () => {
+                confirmationModal.classList.add('hidden');
+                if (resolveModalPromise) {
+                    resolveModalPromise(true);
+                }
+            });
+
+            modalCancelBtn.addEventListener('click', () => {
+                confirmationModal.classList.add('hidden');
+                if (resolveModalPromise) {
+                    resolveModalPromise(false);
+                }
+            });
+            
+            /**
+             * Converts total seconds to a human-readable format (e.g., "1 hr 30 min 15 sec").
+             * @param {number} totalSeconds - The total number of seconds.
+             * @returns {string} The formatted time string.
+             */
+            const formatDuration = (totalSeconds) => {
+                const sign = totalSeconds < 0 ? '-' : '';
+                const absSeconds = Math.abs(totalSeconds);
+                const hours = Math.floor(absSeconds / 3600);
+                const minutes = Math.floor((absSeconds % 3600) / 60);
+                const seconds = absSeconds % 60;
+                let parts = [];
+                if (hours > 0) parts.push(`${hours} hr${hours > 1 ? 's' : ''}`);
+                if (minutes > 0 || hours > 0) parts.push(`${minutes} min`);
+                if (seconds > 0 || (hours === 0 && minutes === 0)) parts.push(`${seconds} sec`);
+                return `${sign}${parts.join(' ')}`;
+            };
+            
+            /**
+             * Shows a message box with the given text.
+             * @param {string} text - The message to display.
+             */
+            const showMessage = (text) => {
+                messageText.textContent = text;
+                messageBox.classList.remove('hidden');
+                setTimeout(() => {
+                    messageBox.classList.add('hidden');
+                }, 3000); // Hide after 3 seconds
+            };
+
+            // --- Navigation Logic ---
+            const showView = (viewId) => {
+                timerView.classList.add('hidden');
+                statsView.classList.add('hidden');
+                manualEntryModal.classList.add('hidden'); // Hide modal on view change
+                editEntryModal.classList.add('hidden');
+                confirmationModal.classList.add('hidden'); // Also hide the confirmation modal
+
+                timerNavBtn.classList.remove('active');
+                statsNavBtn.classList.remove('active');
+
+                if (viewId === 'timerView') {
+                    timerView.classList.remove('hidden');
+                    timerNavBtn.classList.add('active');
+                } else if (viewId === 'statsView') {
+                    statsView.classList.remove('hidden');
+                    statsNavBtn.classList.add('active');
+                }
+            };
+            
+            /**
+             * Calculates the daily out time for the current date and updates the UI.
+             */
+            const updateDailyStatus = () => {
+                const entries = JSON.parse(localStorage.getItem('outTimeEntries') || '[]');
+                const today = new Date().toISOString().slice(0, 10);
+                
+                // Calculate total out time for today in seconds
+                const dailyTotalSeconds = entries.filter(entry => entry.date === today)
+                                                .reduce((sum, entry) => sum + entry.durationSeconds, 0);
+
+                const remainingSeconds = (DAILY_LIMIT_MINUTES * 60) - dailyTotalSeconds;
+                const formattedTime = formatDuration(remainingSeconds);
+                dailyRemainingDisplay.textContent = formattedTime;
+                
+                // Change color based on remaining time
+                dailyRemainingDisplay.classList.remove('text-green-400', 'text-yellow-400', 'text-red-400');
+                if (remainingSeconds / 60 > 15) {
+                    dailyRemainingDisplay.classList.add('text-green-400');
+                } else if (remainingSeconds / 60 > 0) {
+                    dailyRemainingDisplay.classList.add('text-yellow-400');
+                } else {
+                    dailyRemainingDisplay.classList.add('text-red-400');
+                }
+                
+                // Update the progress bar
+                updateProgressBar(dailyTotalSeconds);
+            };
+
+            const updateProgressBar = (totalSeconds) => {
+                const maxSeconds = DAILY_LIMIT_MINUTES * 60;
+                let percentage = (totalSeconds / maxSeconds) * 100;
+                if (percentage > 100) percentage = 100;
+                progressBar.style.width = `${percentage}%`;
+                
+                progressBar.classList.remove('bg-blue-500', 'bg-yellow-500', 'bg-red-500');
+                if (percentage < 75) {
+                    progressBar.classList.add('bg-blue-500');
+                } else if (percentage < 100) {
+                    progressBar.classList.add('bg-yellow-500');
+                } else {
+                    progressBar.classList.add('bg-red-500');
+                }
+            };
+
+            // --- Main Logic (Timer & Stats) ---
+            
+            /**
+             * Renders the entries and daily totals to the DOM.
+             */
+            const render = () => {
+                const entries = JSON.parse(localStorage.getItem('outTimeEntries') || '[]');
+                const dailyTotals = {};
+
+                // Clear existing lists
+                entriesBody.innerHTML = '';
+                totalsContainer.innerHTML = '';
+
+                if (entries.length === 0) {
+                    noEntriesMessage.classList.remove('hidden');
+                    noTotalsMessage.classList.remove('hidden');
+                    return;
+                } else {
+                    noEntriesMessage.classList.add('hidden');
+                    noTotalsMessage.classList.add('hidden');
+                }
+
+                // Sort entries by date and then time
+                entries.sort((a, b) => {
+                    const dateA = new Date(`${a.date}T${a.clockOut}`);
+                    const dateB = new Date(`${b.date}T${b.clockOut}`);
+                    return dateA - dateB;
+                });
+
+                // Render entries table and calculate daily totals
+                entries.forEach(entry => {
+                    const durationFormatted = formatDuration(entry.durationSeconds);
+
+                    // Create table row
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="px-2 py-1 whitespace-nowrap text-sm text-gray-400">${entry.date}</td>
+                        <td class="px-2 py-1 whitespace-nowrap text-sm text-white">${entry.clockOut}</td>
+                        <td class="px-2 py-1 whitespace-nowrap text-sm text-white">${entry.clockIn}</td>
+                        <td class="px-2 py-1 whitespace-nowrap text-sm text-gray-400">${durationFormatted}</td>
+                        <td class="px-2 py-1 whitespace-nowrap text-right text-sm font-medium">
+                            <button class="edit-btn text-blue-500 hover:text-blue-300 transition-colors duration-200 mr-2" data-id="${entry.id}" aria-label="Edit entry">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block" viewBox="0 0 20 20" fill="currentColor">
+                                  <path d="M13.586 3.586a2 2 0 112.828 2.828l-7.293 7.293-2.828 2.828-1.414-1.414 2.828-2.828 7.293-7.293zM10 11.414L11.414 10 15 13.586 13.586 15z" />
+                                </svg>
+                            </button>
+                            <button class="delete-btn text-red-500 hover:text-red-300 transition-colors duration-200" data-id="${entry.id}" aria-label="Delete entry">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 112 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+                        </td>
+                    `;
+                    entriesBody.appendChild(row);
+
+                    // Accumulate daily totals
+                    if (!dailyTotals[entry.date]) {
+                        dailyTotals[entry.date] = 0;
+                    }
+                    dailyTotals[entry.date] += entry.durationSeconds;
+                });
+
+                // Render daily totals
+                for (const date in dailyTotals) {
+                    if (dailyTotals.hasOwnProperty(date)) {
+                        const totalSeconds = dailyTotals[date];
+                        const totalFormatted = formatDuration(totalSeconds);
+                        const totalDiv = document.createElement('div');
+                        totalDiv.classList.add('flex', 'justify-between', 'items-center', 'py-3');
+                        totalDiv.innerHTML = `
+                            <span class="text-sm font-semibold text-gray-300">${date}</span>
+                            <span class="text-sm font-medium text-gray-400">${totalFormatted}</span>
+                        `;
+                        totalsContainer.appendChild(totalDiv);
+                    }
+                }
+            };
+            
+            // --- Event Handlers ---
+
+            timerNavBtn.addEventListener('click', () => {
+                updateDailyStatus(); // Update status whenever user returns to timer
+                showView('timerView');
+            });
+            statsNavBtn.addEventListener('click', () => {
+                render(); // Re-render stats whenever the view is shown
+                showView('statsView');
+            });
+            
+            timerBtn.addEventListener('click', async () => {
+                isOut = !isOut;
+                if (isOut) {
+                    // Start the timer
+                    clockOutTime = new Date();
+                    localStorage.setItem('outTrackerState', JSON.stringify({ isOut: true, clockOutTime: clockOutTime.toISOString() }));
+                    timerBtn.textContent = 'END';
+                    timerBtn.classList.remove('timer-btn', 'pulse-animation');
+                    timerBtn.classList.add('timer-btn', 'active');
+                    showMessage('Timer started.');
+
+                    // Start the real-time timer updates
+                    clearInterval(timerInterval);
+                    timerInterval = setInterval(() => {
+                        updateDailyStatus();
+                        if (clockOutTime) {
+                            const elapsedSeconds = Math.floor((new Date() - clockOutTime) / 1000);
+                            const totalEntries = JSON.parse(localStorage.getItem('outTimeEntries') || '[]')
+                                .filter(entry => entry.date === new Date().toISOString().slice(0, 10))
+                                .reduce((sum, entry) => sum + entry.durationSeconds, 0);
+                            const currentTotal = totalEntries + elapsedSeconds;
+                            const remainingSeconds = (DAILY_LIMIT_MINUTES * 60) - currentTotal;
+                            dailyRemainingDisplay.textContent = formatDuration(remainingSeconds);
+                            updateProgressBar(currentTotal);
+                        }
+                    }, 1000);
+
+                } else {
+                    // End the timer and record the entry
+                    clearInterval(timerInterval);
+                    const clockInTime = new Date();
+                    const durationInMs = clockInTime - new Date(clockOutTime);
+                    const durationInSeconds = Math.floor(durationInMs / 1000);
+
+                    const entries = JSON.parse(localStorage.getItem('outTimeEntries') || '[]');
+                    const newEntry = {
+                        id: Date.now().toString(),
+                        date: clockOutTime.toISOString().slice(0, 10),
+                        clockOut: clockOutTime.toTimeString().slice(0, 5),
+                        clockIn: clockInTime.toTimeString().slice(0, 5),
+                        durationSeconds: durationInSeconds
+                    };
+                    entries.push(newEntry);
+                    localStorage.setItem('outTimeEntries', JSON.stringify(entries));
+
+                    // Reset timer state and update UI
+                    localStorage.removeItem('outTrackerState');
+                    timerBtn.textContent = 'START';
+                    timerBtn.classList.remove('active');
+                    timerBtn.classList.add('pulse-animation');
+                    showMessage('Entry recorded!');
+                    updateDailyStatus();
+                }
+            });
+
+            manualEntryBtn.addEventListener('click', () => {
+                manualEntryModal.classList.remove('hidden');
+                manualDateInput.valueAsDate = new Date(); // Pre-fill with today's date
+            });
+
+            closeModalBtn.addEventListener('click', () => {
+                manualEntryModal.classList.add('hidden');
+            });
+            
+            closeEditModalBtn.addEventListener('click', () => {
+                editEntryModal.classList.add('hidden');
+            });
+
+            submitManualEntryBtn.addEventListener('click', async () => {
+                const date = manualDateInput.value;
+                const outTime = manualOutTimeInput.value;
+                const inTime = manualInTimeInput.value;
+
+                if (!date || !outTime || !inTime) {
+                    await showModal('Please fill in all fields.');
+                    return;
+                }
+
+                const outDateTime = new Date(`${date}T${outTime}:00`);
+                const inDateTime = new Date(`${date}T${inTime}:00`);
+
+                if (inDateTime <= outDateTime) {
+                    await showModal('Clock-in time must be after clock-out time.');
+                    return;
+                }
+
+                const durationInMs = inDateTime - outDateTime;
+                const durationInSeconds = Math.floor(durationInMs / 1000);
+
+                const entries = JSON.parse(localStorage.getItem('outTimeEntries') || '[]');
+                const newEntry = {
+                    id: Date.now().toString(),
+                    date: date,
+                    clockOut: outTime,
+                    clockIn: inTime,
+                    durationSeconds: durationInSeconds
+                };
+
+                entries.push(newEntry);
+                localStorage.setItem('outTimeEntries', JSON.stringify(entries));
+
+                // Clear input fields
+                manualDateInput.value = '';
+                manualOutTimeInput.value = '';
+                manualInTimeInput.value = '';
+                manualEntryModal.classList.add('hidden');
+                showMessage('Manual entry added!');
+                updateDailyStatus();
+                render(); // Re-render stats after adding new entry
+            });
+            
+            submitEditEntryBtn.addEventListener('click', async () => {
+                const idToEdit = editEntryIdInput.value;
+                const newDate = editDateInput.value;
+                const newOutTime = editOutTimeInput.value;
+                const newInTime = editInTimeInput.value;
+                
+                if (!newDate || !newOutTime || !newInTime) {
+                    await showModal('Please fill in all fields.');
+                    return;
+                }
+
+                const outDateTime = new Date(`${newDate}T${newOutTime}:00`);
+                const inDateTime = new Date(`${newDate}T${newInTime}:00`);
+                
+                if (inDateTime <= outDateTime) {
+                    await showModal('Clock-in time must be after clock-out time.');
+                    return;
+                }
+
+                const durationInMs = inDateTime - outDateTime;
+                const durationInSeconds = Math.floor(durationInMs / 1000);
+                
+                let entries = JSON.parse(localStorage.getItem('outTimeEntries') || '[]');
+                const entryIndex = entries.findIndex(entry => entry.id === idToEdit);
+
+                if (entryIndex !== -1) {
+                    entries[entryIndex] = {
+                        id: idToEdit,
+                        date: newDate,
+                        clockOut: newOutTime,
+                        clockIn: newInTime,
+                        durationSeconds: durationInSeconds
+                    };
+                    localStorage.setItem('outTimeEntries', JSON.stringify(entries));
+                    editEntryModal.classList.add('hidden');
+                    showMessage('Entry updated!');
+                    updateDailyStatus();
+                    render();
+                }
+            });
+
+            entriesBody.addEventListener('click', async (event) => {
+                const targetBtn = event.target.closest('.delete-btn');
+                const editBtn = event.target.closest('.edit-btn');
+                
+                if (targetBtn) {
+                    const confirmed = await showModal("Are you sure you want to delete this entry? This action cannot be undone.", true);
+                    if (confirmed) {
+                        const idToDelete = targetBtn.dataset.id;
+                        let entries = JSON.parse(localStorage.getItem('outTimeEntries') || '[]');
+                        entries = entries.filter(entry => entry.id !== idToDelete);
+                        localStorage.setItem('outTimeEntries', JSON.stringify(entries));
+                        showMessage('Entry deleted.');
+                        updateDailyStatus();
+                        render();
+                    }
+                } else if (editBtn) {
+                    const idToEdit = editBtn.dataset.id;
+                    const entries = JSON.parse(localStorage.getItem('outTimeEntries') || '[]');
+                    const entryToEdit = entries.find(entry => entry.id === idToEdit);
+                    
+                    if (entryToEdit) {
+                        editEntryIdInput.value = entryToEdit.id;
+                        editDateInput.value = entryToEdit.date;
+                        editOutTimeInput.value = entryToEdit.clockOut;
+                        editInTimeInput.value = entryToEdit.clockIn;
+                        editEntryModal.classList.remove('hidden');
+                    }
+                }
+            });
+
+            resetAllBtn.addEventListener('click', async () => {
+                const confirmed = await showModal("Are you sure you want to delete all data? This cannot be undone.", true);
+                if (confirmed) {
+                    localStorage.removeItem('outTimeEntries');
+                    localStorage.removeItem('outTrackerState');
+                    showMessage('All data has been reset.');
+                    // Reset timer button state
+                    isOut = false;
+                    clockOutTime = null;
+                    clearInterval(timerInterval);
+                    timerBtn.textContent = 'START';
+                    timerBtn.classList.remove('active');
+                    timerBtn.classList.add('pulse-animation');
+                    updateDailyStatus();
+                    render();
+                }
+            });
+
+            // --- Initialization ---
+            const loadState = () => {
+                const savedState = JSON.parse(localStorage.getItem('outTrackerState'));
+                if (savedState && savedState.isOut) {
+                    isOut = true;
+                    clockOutTime = new Date(savedState.clockOutTime);
+                    timerBtn.textContent = 'END';
+                    timerBtn.classList.remove('pulse-animation');
+                    timerBtn.classList.add('active');
+
+                    // Restart real-time timer updates if the timer was running
+                    clearInterval(timerInterval);
+                    timerInterval = setInterval(() => {
+                        updateDailyStatus();
+                        const elapsedSeconds = Math.floor((new Date() - clockOutTime) / 1000);
+                        const totalEntries = JSON.parse(localStorage.getItem('outTimeEntries') || '[]')
+                            .filter(entry => entry.date === new Date().toISOString().slice(0, 10))
+                            .reduce((sum, entry) => sum + entry.durationSeconds, 0);
+                        const currentTotal = totalEntries + elapsedSeconds;
+                        const remainingSeconds = (DAILY_LIMIT_MINUTES * 60) - currentTotal;
+                        dailyRemainingDisplay.textContent = formatDuration(remainingSeconds);
+                        updateProgressBar(currentTotal);
+                    }, 1000);
+                } else {
+                    timerBtn.classList.add('pulse-animation');
+                }
+            };
+            
+            // Initial setup
+            showView('timerView');
+            loadState();
+            updateDailyStatus();
+            
+            // Update current time display every second
+            setInterval(() => {
+                currentTimeDisplay.textContent = `Current time: ${new Date().toLocaleTimeString()}`;
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
